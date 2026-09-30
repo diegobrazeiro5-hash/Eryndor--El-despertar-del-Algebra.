@@ -1,0 +1,909 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Eryndor: El Despertar del Álgebra</title>
+    <!-- Librería jsPDF para generación de reportes en PDF -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+    <style>
+        * { box-sizing: border-box; margin: 0; padding: 0; font-family: 'Georgia', serif; }
+        body { background: #0a0a12; color: #f0e6d2; overflow-x: hidden; min-height: 100vh; display: flex; align-items: center; justify-content: center; }
+        #bgCanvas { position: fixed; top: 0; left: 0; width: 100vw; height: 100vh; z-index: 1; pointer-events: none; }
+        .container { position: relative; z-index: 2; width: 95%; max-width: 800px; background: rgba(20, 16, 35, 0.95); border: 2px solid #c8a755; border-radius: 12px; padding: 25px; box-shadow: 0 0 25px rgba(200, 167, 85, 0.3); text-align: center; }
+        h1 { color: #f3d078; font-size: 2rem; margin-bottom: 12px; text-shadow: 0 0 10px rgba(243, 208, 120, 0.5); }
+        p { color: #d1c7b7; font-size: 1rem; line-height: 1.5; margin-bottom: 15px; }
+        .form-group { text-align: left; margin-bottom: 15px; }
+        label { display: block; color: #c8a755; font-weight: bold; margin-bottom: 5px; font-size: 0.95rem; }
+        input { width: 100%; padding: 10px; background: #120e20; border: 1px solid #5a4b2a; border-radius: 6px; color: #fff; font-size: 1rem; outline: none; }
+        input:focus { border-color: #f3d078; box-shadow: 0 0 8px rgba(243, 208, 120, 0.4); }
+        .btn { background: linear-gradient(180deg, #c8a755 0%, #8c6f2d 100%); color: #0a0a12; font-weight: bold; padding: 10px 20px; border: none; border-radius: 6px; font-size: 1rem; cursor: pointer; transition: transform 0.2s, filter 0.2s; margin: 5px; }
+        .btn:hover { transform: translateY(-2px); filter: brightness(1.2); }
+        .btn-secondary { background: linear-gradient(180deg, #4a4a5a 0%, #2a2a3a 100%); color: #e0e0e0; }
+        .btn-pdf { background: linear-gradient(180deg, #27ae60 0%, #1e824c 100%); color: #ffffff; }
+        .error-msg { color: #ff6b6b; font-size: 0.9rem; margin-bottom: 15px; display: none; }
+        
+        .hidden { display: none !important; }
+        #sceneCanvas { width: 100%; height: 200px; background: #0d0a17; border: 1px solid #3a301a; border-radius: 8px; margin-bottom: 15px; }
+        .nav-btns { display: flex; justify-content: space-between; align-items: center; margin-top: 15px; }
+        .step-dots { display: flex; justify-content: center; gap: 8px; margin-top: 10px; }
+        .dot { width: 10px; height: 10px; background: #3a301a; border-radius: 50%; }
+        .dot.active { background: #f3d078; box-shadow: 0 0 6px #f3d078; }
+
+        /* ESCENARIO Y COMBATE */
+        #gameHeader { display: flex; justify-content: space-between; align-items: center; background: #120e20; padding: 10px 18px; border-radius: 6px; border: 1px solid #3a301a; margin-bottom: 12px; font-size: 0.95rem; color: #f3d078; }
+        #gameCanvas { width: 100%; height: 420px; background: #1a291a; border: 2px solid #5a4b2a; border-radius: 8px; display: block; box-shadow: inset 0 0 20px rgba(0,0,0,0.8); }
+        .controls-hint { margin-top: 10px; font-size: 0.85rem; color: #a09580; }
+
+        /* Modal de Combate */
+        .modal-overlay { position: fixed; top: 0; left: 0; width: 100vw; height: 100vh; background: rgba(5, 5, 12, 0.65); z-index: 10; display: flex; align-items: center; justify-content: center; }
+        .modal-card { background: rgba(22, 18, 36, 0.95); border: 2px solid #f3d078; border-radius: 12px; width: 90%; max-width: 550px; padding: 25px; text-align: center; box-shadow: 0 0 30px rgba(243, 208, 120, 0.4); }
+        .options-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin: 20px 0; }
+        .opt-btn { background: #251e38; border: 1px solid #5a4b2a; color: #fff; padding: 12px; border-radius: 6px; cursor: pointer; font-size: 0.95rem; text-align: left; transition: all 0.2s; }
+        .opt-btn:hover { background: #3d325a; border-color: #f3d078; }
+        .hint-box { background: rgba(200, 167, 85, 0.1); border-left: 3px solid #c8a755; padding: 10px; text-align: left; font-size: 0.85rem; color: #d1c7b7; margin-top: 10px; display: none; }
+
+        /* Estilos del Reporte Final */
+        .report-box { background: #120e20; border: 1px solid #c8a755; border-radius: 8px; padding: 15px; margin: 15px 0; text-align: left; }
+        .report-row { display: flex; justify-content: space-between; padding: 6px 0; border-bottom: 1px solid #2a2238; font-size: 0.95rem; }
+        .report-row:last-child { border-bottom: none; }
+        .report-label { color: #f3d078; font-weight: bold; }
+    </style>
+</head>
+<body>
+    <canvas id="bgCanvas"></canvas>
+
+    <!-- PASO 1: REGISTRO DE ESTUDIANTE -->
+    <div id="step1-screen" class="container">
+        <h1>Eryndor: El Despertar del Álgebra</h1>
+        <p>Ingresa tus datos para registrar tu Ficha de Aventurero y comenzar la travesía.</p>
+
+        <div class="form-group">
+            <label for="nombre">Nombre:</label>
+            <input type="text" id="nombre" placeholder="Ej. Mateo">
+        </div>
+        <div class="form-group">
+            <label for="apellido">Apellido:</label>
+            <input type="text" id="apellido" placeholder="Ej. Rodríguez">
+        </div>
+        <div class="form-group">
+            <label for="grupo">Grupo:</label>
+            <input type="text" id="grupo" placeholder="Ej. 9° 2 - Liceo 2 Artigas">
+        </div>
+
+        <p id="errorMsg" class="error-msg">Por favor, completa todos los campos antes de continuar.</p>
+        <button class="btn" onclick="iniciarAventura()">Comenzar Aventura</button>
+    </div>
+
+    <!-- PASO 2: LORE / HISTORIA -->
+    <div id="step2-screen" class="container hidden">
+        <h1 id="sceneTitle">Fase 1: Paz en Mistgard</h1>
+        <canvas id="sceneCanvas" width="580" height="200"></canvas>
+        <p id="sceneText"></p>
+
+        <div class="step-dots">
+            <span class="dot active"></span>
+            <span class="dot"></span>
+            <span class="dot"></span>
+            <span class="dot"></span>
+        </div>
+
+        <div class="nav-btns">
+            <button id="btnPrev" class="btn btn-secondary" onclick="anteriorEscena()">Anterior</button>
+            <button class="btn btn-secondary" onclick="omitirHistoria()">Omitir Historia</button>
+            <button id="btnNext" class="btn" onclick="siguienteEscena()">Siguiente</button>
+        </div>
+    </div>
+
+    <!-- ESCENARIO PRINCIPAL DEL JUEGO -->
+    <div id="step3-screen" class="container hidden">
+        <div id="gameHeader">
+            <span id="playerInfo">Aventurero: -</span>
+            <span id="biomeName">Bioma 1: La Pradera</span>
+            <span id="enemyTracker">Enemigos: 3 / 3</span>
+        </div>
+
+        <canvas id="gameCanvas" width="750" height="420"></canvas>
+        <div class="controls-hint">Usa <strong>W, A, S, D</strong> o las <strong>Flechas del Teclado</strong> para moverte.</div>
+    </div>
+
+    <!-- MODAL DE COMBATE Y PREGUNTAS -->
+    <div id="combatModal" class="modal-overlay hidden">
+        <div class="modal-card">
+            <h2 id="combatTitle" style="color: #f3d078; margin-bottom: 10px;">¡Encuentro Enemigo!</h2>
+            <p id="combatQuestion" style="font-size: 1.1rem; color: #fff; margin-bottom: 15px;"></p>
+            
+            <div id="optionsContainer" class="options-grid"></div>
+
+            <button class="btn btn-secondary" onclick="toggleHint()" style="font-size: 0.85rem;">Memoria de los Padres (Pista)</button>
+            <div id="hintText" class="hint-box"></div>
+            <p id="feedbackMsg" style="margin-top: 10px; font-weight: bold;"></p>
+        </div>
+    </div>
+
+    <!-- PANTALLA / MODAL DE VICTORIA Y REPORTE FINAL PARA CREA -->
+    <div id="victoryModal" class="modal-overlay hidden">
+        <div class="modal-card" style="max-width: 600px;">
+            <h1 style="color: #f3d078; font-size: 1.8rem; margin-bottom: 10px;">¡VICTORIA ABSOLUTA!</h1>
+            <p style="color: #2ecc71; font-size: 1.1rem; font-weight: bold;">¡El dragón Vaelgor ha sido derrotado y el Álgebra ha vuelto a Mistgard!</p>
+            
+            <div class="report-box">
+                <div class="report-row"><span class="report-label">Estudiante:</span> <span id="repStudent">-</span></div>
+                <div class="report-row"><span class="report-label">Grupo / Centro:</span> <span id="repGroup">-</span></div>
+                <div class="report-row"><span class="report-label">Biomas Purificados:</span> <span>5 de 5 (Completo)</span></div>
+                <div class="report-row"><span class="report-label">Aciertos Totales:</span> <span id="repCorrect">0</span></div>
+                <div class="report-row"><span class="report-label">Intentos Fallidos:</span> <span id="repWrong">0</span></div>
+                <div class="report-row"><span class="report-label">Puntos de Salud de Vaelgor:</span> <span id="repDragonHP">0</span></div>
+                <div class="report-row"><span class="report-label">Fecha y Hora:</span> <span id="repDate">-</span></div>
+            </div>
+
+            <p style="font-size: 0.9rem; color: #a09580; margin-bottom: 15px;">Descarga la ficha en PDF y adjúntala como entrega de tarea en la plataforma CREA.</p>
+
+            <button class="btn btn-pdf" onclick="descargarPDF()">Descargar Reporte PDF para CREA</button>
+            <button class="btn btn-secondary" onclick="location.reload()">Jugar de Nuevo</button>
+        </div>
+    </div>
+
+    <script>
+        // FONDO DE PARTÍCULAS
+        const canvas = document.getElementById('bgCanvas');
+        const ctx = canvas.getContext('2d');
+        let width, height;
+        const symbols = ['x', 'y', 'P(x)', 'x²', 'm', 'b', 'Δ', 'y=mx+b', '≤', '='];
+        const particles = [];
+
+        function resize() {
+            width = canvas.width = window.innerWidth;
+            height = canvas.height = window.innerHeight;
+        }
+        window.addEventListener('resize', resize);
+        resize();
+
+        for(let i = 0; i < 35; i++) {
+            particles.push({
+                x: Math.random() * width,
+                y: Math.random() * height,
+                text: symbols[Math.floor(Math.random() * symbols.length)],
+                size: Math.random() * 16 + 12,
+                speedY: - (Math.random() * 0.5 + 0.2),
+                opacity: Math.random() * 0.5 + 0.2
+            });
+        }
+
+        function animateBg() {
+            ctx.clearRect(0, 0, width, height);
+            particles.forEach(p => {
+                p.y += p.speedY;
+                if(p.y < -20) p.y = height + 20;
+                ctx.fillStyle = `rgba(200, 167, 85, ${p.opacity})`;
+                ctx.font = `${p.size}px Georgia`;
+                ctx.fillText(p.text, p.x, p.y);
+            });
+            requestAnimationFrame(animateBg);
+        }
+        animateBg();
+
+        // DATOS DEL ESTUDIANTE Y REGISTROS
+        let alumno = { nombre: '', apellido: '', grupo: '' };
+        let currentScene = 0;
+        let totalAciertos = 0;
+        let totalErrores = 0;
+
+        const escenas = [
+            {
+                title: "Escena 1: La Era de Paz en Mistgard",
+                text: "En tiempos lejanos, el reino de Mistgard florecía bajo el equilibrio del Álgebra Ancestral. Los sabios mantenían la prosperidad resolviendo las ecuaciones del reino.",
+                draw: (c) => {
+                    c.fillStyle = "#1b2a1a"; c.fillRect(0,0,580,200);
+                    c.fillStyle = "#4a7c59"; c.beginPath(); c.arc(150, 200, 120, 0, Math.PI*2); c.fill();
+                    c.beginPath(); c.arc(430, 200, 150, 0, Math.PI*2); c.fill();
+                    c.fillStyle = "#f3d078"; c.beginPath(); c.arc(290, 45, 20, 0, Math.PI*2); c.fill();
+                }
+            },
+            {
+                title: "Escena 2: La Caída y la Sombra de Vaelgor",
+                text: "Pero la oscuridad despertó. El dragón Vaelgor irrumpió desde el volcán, rompiendo los sellos numéricos y sumiendo los biomas del reino en el caos.",
+                draw: (c) => {
+                    c.fillStyle = "#2a1215"; c.fillRect(0,0,580,200);
+                    c.fillStyle = "#e74c3c"; c.beginPath(); c.moveTo(0,200); c.lineTo(150,90); c.lineTo(300,200); c.fill();
+                    c.fillStyle = "#c0392b"; c.beginPath(); c.moveTo(250,200); c.lineTo(400,70); c.lineTo(580,200); c.fill();
+                    c.fillStyle = "#ff7b00"; c.beginPath(); c.arc(290, 60, 25, 0, Math.PI*2); c.fill();
+                }
+            },
+            {
+                title: "Escena 3: La Memoria de los Padres",
+                text: "En el momento más oscuro, los espíritus de los antiguos sabios dejaron la 'Memoria de los Padres': una guía sagrada para resolver cualquier desafío matemático.",
+                draw: (c) => {
+                    c.fillStyle = "#0f1c2e"; c.fillRect(0,0,580,200);
+                    c.fillStyle = "rgba(243, 208, 120, 0.15)"; c.beginPath(); c.arc(290, 100, 70, 0, Math.PI*2); c.fill();
+                    c.fillStyle = "#f3d078"; c.font = "20px Georgia"; c.textAlign = "center";
+                    c.fillText("y = mx + b", 290, 105);
+                }
+            },
+            {
+                title: "Escena 4: El Despertar del Héroe",
+                text: "Ahora, tú has sido elegido. Armado con tu intelecto y el conocimiento del álgebra, deberás explorar los valles y liberar a Mistgard.",
+                draw: (c) => {
+                    c.fillStyle = "#1e1b30"; c.fillRect(0,0,580,200);
+                    c.fillStyle = "#c8a755"; c.fillRect(285, 60, 10, 80);
+                    c.fillRect(270, 110, 40, 10);
+                    c.beginPath(); c.moveTo(290, 30); c.lineTo(275, 60); c.lineTo(305, 60); c.close(); c.fill();
+                }
+            }
+        ];
+
+        function iniciarAventura() {
+            const nom = document.getElementById('nombre').value.trim();
+            const ape = document.getElementById('apellido').value.trim();
+            const gru = document.getElementById('grupo').value.trim();
+            const err = document.getElementById('errorMsg');
+
+            if(!nom || !ape || !gru) {
+                err.style.display = 'block';
+                return;
+            }
+            err.style.display = 'none';
+
+            alumno = { nombre: nom, apellido: ape, grupo: gru };
+
+            document.getElementById('step1-screen').classList.add('hidden');
+            document.getElementById('step2-screen').classList.remove('hidden');
+            cargarEscena(0);
+        }
+
+        function cargarEscena(idx) {
+            currentScene = idx;
+            const esc = escenas[idx];
+            document.getElementById('sceneTitle').innerText = esc.title;
+            document.getElementById('sceneText').innerText = esc.text;
+
+            const scCanvas = document.getElementById('sceneCanvas');
+            const sCtx = scCanvas.getContext('2d');
+            sCtx.clearRect(0,0,580,200);
+            esc.draw(sCtx);
+
+            const dots = document.querySelectorAll('.dot');
+            dots.forEach((d, i) => {
+                if(i === idx) d.classList.add('active');
+                else d.classList.remove('active');
+            });
+
+            document.getElementById('btnPrev').style.visibility = (idx === 0) ? 'hidden' : 'visible';
+            document.getElementById('btnNext').innerText = (idx === escenas.length - 1) ? "Entrar al Juego" : "Siguiente";
+        }
+
+        function siguienteEscena() {
+            if(currentScene < escenas.length - 1) {
+                cargarEscena(currentScene + 1);
+            } else {
+                iniciarJuegoEscenario();
+            }
+        }
+
+        function anteriorEscena() {
+            if(currentScene > 0) {
+                cargarEscena(currentScene - 1);
+            }
+        }
+
+        function omitirHistoria() {
+            iniciarJuegoEscenario();
+        }
+
+        // ==========================================
+        // BANCOS DE PREGUNTAS
+        // ==========================================
+
+        // BIOMA 1: ECUACIÓN DE LA RECTA
+        const BANCO_BIOMA_1 = [
+            { q: "En la recta y = 3x - 4, ¿cuál es el valor de la pendiente (m)?", opts: ["m = 3", "m = -4", "m = 4", "m = 1/3"], ans: 0, hint: "En la forma y = mx + b, m es el número que multiplica a x." },
+            { q: "En la recta y = -2x + 6, ¿cuál es la ordenada al origen (b)?", opts: ["b = -2", "b = 6", "b = -6", "b = 2"], ans: 1, hint: "La ordenada al origen b es el término independiente." },
+            { q: "Dada la recta y = 2x + 1, si x = 3, ¿cuánto vale 'y'?", opts: ["y = 5", "y = 6", "y = 7", "y = 8"], ans: 2, hint: "Sustituye x por 3: y = 2(3) + 1 = 7." },
+            { q: "Halla la raíz de la recta y = 4x - 8 (valor de x cuando y = 0).", opts: ["x = -2", "x = 8", "x = 4", "x = 2"], ans: 3, hint: "Iguala a 0: 0 = 4x - 8 --> 4x = 8 --> x = 2." },
+            { q: "Indica la ecuación de la recta con pendiente m = -3 y b = 5.", opts: ["y = 5x - 3", "y = -3x + 5", "y = 3x + 5", "y = -3x - 5"], ans: 1, hint: "Sustituye m y b en la expresión y = mx + b." }
+        ];
+
+        // BIOMA 2: SISTEMAS DE ECUACIONES 2x2
+        const BANCO_BIOMA_2 = [
+            { q: "Dado el sistema { x + y = 10 ; x - y = 4 }, ¿cuánto vale 'x'?", opts: ["x = 3", "x = 7", "x = 6", "x = 5"], ans: 1, hint: "Suma ambas ecuaciones: 2x = 14 --> x = 7." },
+            { q: "En el sistema { 2x + y = 11 ; y = 3 }, ¿cuánto vale 'x'?", opts: ["x = 7", "x = 3", "x = 5", "x = 4"], ans: 3, hint: "Sustituye y por 3: 2x + 3 = 11 --> 2x = 8 --> x = 4." },
+            { q: "Resuelve el sistema { x + y = 12 ; x - y = 2 }. Halla el valor de 'y'.", opts: ["y = 7", "y = 5", "y = 10", "y = 2"], ans: 1, hint: "Resta las ecuaciones: 2y = 10 --> y = 5." },
+            { q: "Dado { 3x - y = 7 ; y = 2 }, halla el valor de 'x'.", opts: ["x = 5", "x = 2", "x = 3", "x = 4"], ans: 2, hint: "Sustituye y = 2: 3x - 2 = 7 --> 3x = 9 --> x = 3." },
+            { q: "Si { x + 2y = 8 ; x = 2 }, ¿cuál es el valor de 'y'?", opts: ["y = 3", "y = 4", "y = 2", "y = 6"], ans: 0, hint: "Sustituye x = 2: 2 + 2y = 8 --> 2y = 6 --> y = 3." }
+        ];
+
+        // BIOMA 3: POLINOMIOS
+        const BANCO_BIOMA_3 = [
+            { q: "Dado P(x) = 2x² - 3x + 1, calcula el valor numérico P(2).", opts: ["P(2) = 5", "P(2) = 1", "P(2) = 3", "P(2) = 7"], ans: 2, hint: "Sustituye x por 2: 2(2)² - 3(2) + 1 = 8 - 6 + 1 = 3." },
+            { q: "Calcula el grado del polinomio P(x) = 5x⁴ - 3x² + 7x - 2.", opts: ["Grado 4", "Grado 5", "Grado 2", "Grado 3"], ans: 0, hint: "El grado es el mayor exponente de la variable x." },
+            { q: "Suma los polinomios: P(x) = 3x² + 4x y Q(x) = 2x² - 1.", opts: ["6x² + 4x - 1", "5x⁴ + 4x - 1", "5x² + 4x - 1", "5x² + 3x"], ans: 2, hint: "Agrupa términos semejantes: (3x² + 2x²) + 4x - 1." },
+            { q: "Resta los polinomios: (4x² + 5x) - (2x² + 3x).", opts: ["2x² + 8x", "2x² + 2x", "6x² + 2x", "2x² - 2x"], ans: 1, hint: "Resta coeficientes semejantes: (4 - 2)x² + (5 - 3)x." },
+            { q: "Dado el polinomio P(x) = x³ - 2x + 4, calcula P(0).", opts: ["P(0) = 0", "P(0) = 2", "P(0) = -2", "P(0) = 4"], ans: 3, hint: "Al reemplazar x por 0, solo queda el término independiente." }
+        ];
+
+        // BIOMA 4: ECUACIONES CUADRÁTICAS
+        const BANCO_BIOMA_4 = [
+            { q: "Halla las soluciones de la ecuación cuadrática: x² - 25 = 0", opts: ["x = 25 y x = -25", "x = 5 y x = -5", "x = 5 únicamente", "x = 0 y x = 5"], ans: 1, hint: "Despeja x² = 25 --> x = ±√25." },
+            { q: "Encuentra una de las raíces de la ecuación: x² - 5x + 6 = 0", opts: ["x = -2", "x = 5", "x = -3", "x = 2"], ans: 3, hint: "Busca dos números que multiplicados den 6 y sumados den -5 (-2 y -3)." },
+            { q: "Resuelve la ecuación cuadrática incompleta: x² - 4x = 0", opts: ["x = 0 y x = 4", "x = 2 y x = -2", "x = 4 únicamente", "x = 0 y x = -4"], ans: 0, hint: "Factoriza x(x - 4) = 0. Las soluciones son x = 0 y x = 4." },
+            { q: "Halla las raíces de la ecuación: x² - 9 = 0", opts: ["x = 9 y x = -9", "x = 3 únicamente", "x = 3 y x = -3", "x = 0 y x = 3"], ans: 2, hint: "x² = 9 --> x = ±√9 = ±3." },
+            { q: "Determina el número de soluciones reales si el discriminante Δ > 0.", opts: ["Una solución única", "Dos soluciones reales distintas", "Ninguna solución real", "Infinitas soluciones"], ans: 1, hint: "Un discriminante positivo indica dos raíces reales diferentes." }
+        ];
+
+        // BIOMA 5: INECUACIONES CUADRÁTICAS Y DESAFÍOS DEL DRAGÓN
+        const BANCO_BIOMA_5_DRAGON = [
+            { q: "Desafío de Vaelgor: ¿Cuál es el conjunto solución de x² ≤ 9?", opts: ["( -∞, 3 ]", "[ -3, 3 ]", "[ 0, 9 ]", "[ -9, 9 ]"], ans: 1, hint: "x² ≤ 9 significa que -3 ≤ x ≤ 3, es decir, el intervalo cerrado [ -3, 3 ]." },
+            { q: "Desafío de Vaelgor: Determina la solución de x² - 16 < 0.", opts: ["[ -4, 4 ]", "( -∞, 4 )", "( -4, 4 )", "( 0, 16 )"], ans: 2, hint: "x² < 16 da los valores estrictamente entre -4 y 4: ( -4, 4 )." },
+            { q: "Desafío de Vaelgor: Resuelve la inecuación cuadrática x² ≥ 4.", opts: ["( -∞, -2 ] ∪ [ 2, +∞ )", "[ -2, 2 ]", "[ 2, +∞ )", "( -∞, 2 ]"], ans: 0, hint: "x es menor o igual que -2 o mayor o igual que 2." },
+            { q: "Desafío de Vaelgor: Dado P(x) = x² - 4x + 3, halla P(3).", opts: ["P(3) = 3", "P(3) = 6", "P(3) = -1", "P(3) = 0"], ans: 3, hint: "3² - 4(3) + 3 = 9 - 12 + 3 = 0." },
+            { q: "Desafío de Vaelgor: Resuelve el sistema { x + y = 8 ; x - y = 2 }. Halla x.", opts: ["x = 3", "x = 5", "x = 6", "x = 4"], ans: 1, hint: "Suma ambas ecuaciones: 2x = 10 --> x = 5." },
+            { q: "Desafío de Vaelgor: En la recta y = -4x + 8, ¿cuál es la ordenada al origen?", opts: ["b = -4", "b = 8", "b = 2", "b = -8"], ans: 1, hint: "La ordenada al origen b es el número independiente 8." },
+            { q: "Desafío de Vaelgor: Halla las raíces de la ecuación x² - 7x + 10 = 0.", opts: ["x = -2 y x = -5", "x = 1 y x = 10", "x = 2 y x = 5", "x = 3 y x = 4"], ans: 2, hint: "Multiplicados den 10 y sumados den 7: (x - 2)(x - 5) = 0." }
+        ];
+
+        let currentBiome = 1;
+        let preguntasDisponibles = [];
+        let gameCanvas, gCtx;
+        let player = { x: 80, y: 210, speed: 10 };
+        let enemies = [];
+        let portal = { x: 680, y: 170, width: 40, height: 75 };
+        let activeEnemy = null;
+        let currentQuestion = null;
+        let inCombat = false;
+        let barrierPulse = 0;
+
+        // VARIABLES DE JEFE (VAELGOR)
+        let dragonMaxHP = 3;
+        let dragonHP = 3;
+
+        function iniciarJuegoEscenario() {
+            document.getElementById('step2-screen').classList.add('hidden');
+            document.getElementById('step3-screen').classList.remove('hidden');
+
+            document.getElementById('playerInfo').innerText = `Aventurero: ${alumno.nombre} ${alumno.apellido} (${alumno.grupo})`;
+            
+            gameCanvas = document.getElementById('gameCanvas');
+            gCtx = gameCanvas.getContext('2d');
+
+            cargarBioma(1);
+
+            window.addEventListener('keydown', handleKeyDown);
+            requestAnimationFrame(gameLoop);
+        }
+
+        function cargarBioma(numeroBioma) {
+            currentBiome = numeroBioma;
+            player.x = 80;
+            player.y = 210;
+
+            if (numeroBioma === 1) {
+                document.getElementById('biomeName').innerText = "Bioma 1: La Pradera (Ecuación de la Recta)";
+                preguntasDisponibles = [...BANCO_BIOMA_1];
+                enemies = [
+                    { id: 1, x: 260, y: 130, alive: true },
+                    { id: 2, x: 430, y: 290, alive: true },
+                    { id: 3, x: 570, y: 170, alive: true }
+                ];
+            } else if (numeroBioma === 2) {
+                document.getElementById('biomeName').innerText = "Bioma 2: El Desierto (Sistemas 2x2)";
+                preguntasDisponibles = [...BANCO_BIOMA_2];
+                enemies = [
+                    { id: 1, x: 250, y: 120, alive: true },
+                    { id: 2, x: 420, y: 290, alive: true },
+                    { id: 3, x: 580, y: 180, alive: true }
+                ];
+            } else if (numeroBioma === 3) {
+                document.getElementById('biomeName').innerText = "Bioma 3: El Bosque Encantado (Polinomios)";
+                preguntasDisponibles = [...BANCO_BIOMA_3];
+                enemies = [
+                    { id: 1, x: 260, y: 140, alive: true },
+                    { id: 2, x: 440, y: 280, alive: true },
+                    { id: 3, x: 590, y: 160, alive: true }
+                ];
+            } else if (numeroBioma === 4) {
+                document.getElementById('biomeName').innerText = "Bioma 4: Las Cumbres Heladas (Ecuaciones Cuadráticas)";
+                preguntasDisponibles = [...BANCO_BIOMA_4];
+                enemies = [
+                    { id: 1, x: 270, y: 130, alive: true },
+                    { id: 2, x: 430, y: 290, alive: true },
+                    { id: 3, x: 580, y: 170, alive: true }
+                ];
+            } else if (numeroBioma === 5) {
+                document.getElementById('biomeName').innerText = "Bioma 5: El Volcán de Vaelgor (Inecuaciones y Final)";
+                preguntasDisponibles = [...BANCO_BIOMA_5_DRAGON];
+                
+                dragonMaxHP = Math.floor(Math.random() * 3) + 3; // Entre 3 y 5
+                dragonHP = dragonMaxHP;
+
+                enemies = [
+                    { id: 99, x: 550, y: 210, alive: true, isBoss: true }
+                ];
+            }
+            updateEnemyTracker();
+        }
+
+        function updateEnemyTracker() {
+            if (currentBiome === 5) {
+                document.getElementById('enemyTracker').innerText = `Jefe Vaelgor HP: ${dragonHP} / ${dragonMaxHP}`;
+            } else {
+                const vivos = enemies.filter(e => e.alive).length;
+                document.getElementById('enemyTracker').innerText = `Enemigos: ${vivos} / 3`;
+            }
+        }
+
+        // RENDERIZADO DE LOS ESCENARIOS
+        function renderPradera() {
+            let bgGrad = gCtx.createLinearGradient(0, 0, 0, 420);
+            bgGrad.addColorStop(0, "#193319"); bgGrad.addColorStop(1, "#274a27");
+            gCtx.fillStyle = bgGrad; gCtx.fillRect(0, 0, 750, 420);
+
+            gCtx.fillStyle = "#0f230f";
+            for(let x = 0; x <= 750; x += 30) {
+                gCtx.beginPath(); cArc(x, 15, 25); gCtx.fill();
+                gCtx.beginPath(); cArc(x, 405, 25); gCtx.fill();
+            }
+
+            gCtx.beginPath(); gCtx.moveTo(40, 210); gCtx.bezierCurveTo(200, 150, 350, 280, 710, 205);
+            gCtx.lineWidth = 55; gCtx.strokeStyle = "#3a2818"; gCtx.stroke();
+            gCtx.lineWidth = 45; gCtx.strokeStyle = "#4e3824"; gCtx.stroke();
+
+            for(let i = 0; i < 15; i++) {
+                let fx = (i * 53 + 20) % 730;
+                let fy = (i * 37 + 40) % 360;
+                gCtx.fillStyle = (i % 2 === 0) ? "#f1c40f" : "#e74c3c";
+                gCtx.beginPath(); cArc(fx, fy, 3); gCtx.fill();
+            }
+        }
+
+        function renderDesierto() {
+            let bgGrad = gCtx.createLinearGradient(0, 0, 0, 420);
+            bgGrad.addColorStop(0, "#d49b4b"); bgGrad.addColorStop(1, "#be8335");
+            gCtx.fillStyle = bgGrad; gCtx.fillRect(0, 0, 750, 420);
+
+            gCtx.fillStyle = "#a87126";
+            gCtx.beginPath(); gCtx.moveTo(0, 100); gCtx.quadraticCurveTo(200, 40, 400, 90); gCtx.quadraticCurveTo(600, 130, 750, 80);
+            gCtx.lineTo(750, 0); gCtx.lineTo(0, 0); gCtx.fill();
+
+            gCtx.beginPath(); gCtx.moveTo(40, 210); gCtx.bezierCurveTo(220, 290, 380, 120, 710, 205);
+            gCtx.lineWidth = 55; gCtx.strokeStyle = "#8f5b1d"; gCtx.stroke();
+            gCtx.lineWidth = 45; gCtx.strokeStyle = "#a36c28"; gCtx.stroke();
+
+            [120, 350, 620].forEach(cx => {
+                gCtx.fillStyle = "#27ae60";
+                gCtx.fillRect(cx, 80, 10, 35);
+                gCtx.fillRect(cx - 8, 90, 8, 6); gCtx.fillRect(cx - 8, 80, 6, 16);
+                gCtx.fillRect(cx + 10, 95, 8, 6); gCtx.fillRect(cx + 12, 85, 6, 16);
+            });
+        }
+
+        function renderBosque() {
+            let bgGrad = gCtx.createLinearGradient(0, 0, 0, 420);
+            bgGrad.addColorStop(0, "#0a1f18"); bgGrad.addColorStop(1, "#180d28");
+            gCtx.fillStyle = bgGrad; gCtx.fillRect(0, 0, 750, 420);
+
+            gCtx.beginPath(); gCtx.moveTo(40, 210); gCtx.bezierCurveTo(180, 120, 360, 300, 710, 205);
+            gCtx.lineWidth = 55; gCtx.strokeStyle = "#1b2936"; gCtx.stroke();
+            gCtx.lineWidth = 45; gCtx.strokeStyle = "#2c3e50"; gCtx.stroke();
+
+            for(let i = 0; i < 12; i++) {
+                let hx = (i * 67 + 30) % 720;
+                let hy = (i * 41 + 50) % 350;
+                gCtx.fillStyle = "#9b59b6";
+                gCtx.beginPath(); cArc(hx, hy, 4); gCtx.fill();
+                gCtx.fillStyle = "#1abc9c";
+                gCtx.beginPath(); cArc(hx + 3, hy - 2, 2); gCtx.fill();
+            }
+        }
+
+        function renderMontana() {
+            let bgGrad = gCtx.createLinearGradient(0, 0, 0, 420);
+            bgGrad.addColorStop(0, "#081b29"); bgGrad.addColorStop(1, "#1a364a");
+            gCtx.fillStyle = bgGrad; gCtx.fillRect(0, 0, 750, 420);
+
+            gCtx.fillStyle = "#2c485e";
+            gCtx.beginPath(); gCtx.moveTo(0, 180); gCtx.lineTo(110, 70); gCtx.lineTo(220, 180); gCtx.lineTo(350, 50); gCtx.lineTo(480, 180); gCtx.lineTo(600, 80); gCtx.lineTo(750, 180); gCtx.lineTo(750, 420); gCtx.lineTo(0, 420); gCtx.fill();
+
+            gCtx.fillStyle = "#ecf0f1";
+            gCtx.beginPath(); gCtx.moveTo(110, 70); gCtx.lineTo(90, 95); gCtx.lineTo(130, 95); cCtxClose(gCtx);
+            gCtx.beginPath(); gCtx.moveTo(350, 50); gCtx.lineTo(325, 80); gCtx.lineTo(375, 80); cCtxClose(gCtx);
+
+            gCtx.beginPath(); gCtx.moveTo(40, 210); gCtx.bezierCurveTo(200, 280, 380, 130, 710, 205);
+            gCtx.lineWidth = 55; gCtx.strokeStyle = "#81d4fa"; gCtx.stroke();
+            gCtx.lineWidth = 45; gCtx.strokeStyle = "#e0f7fa"; gCtx.stroke();
+        }
+
+        // REDISEÑO DEL ESCENARIO DEL VOLCÁN
+        function renderVolcan() {
+            let bgGrad = gCtx.createLinearGradient(0, 0, 0, 420);
+            bgGrad.addColorStop(0, "#0f0202"); 
+            bgGrad.addColorStop(0.5, "#260505"); 
+            bgGrad.addColorStop(1, "#420a0a");
+            gCtx.fillStyle = bgGrad; gCtx.fillRect(0, 0, 750, 420);
+
+            // Cañón volcánico
+            gCtx.fillStyle = "#1c0707";
+            gCtx.beginPath(); 
+            gCtx.moveTo(0, 180); gCtx.lineTo(160, 50); gCtx.lineTo(310, 180); 
+            gCtx.lineTo(520, 30); gCtx.lineTo(750, 190); gCtx.lineTo(750, 420); gCtx.lineTo(0, 420); 
+            gCtx.closePath(); gCtx.fill();
+
+            // Cráter ardiente en el fondo
+            let craterGrad = gCtx.createRadialGradient(550, 210, 10, 550, 210, 130);
+            craterGrad.addColorStop(0, "rgba(255, 120, 0, 0.45)");
+            craterGrad.addColorStop(1, "rgba(0, 0, 0, 0)");
+            gCtx.fillStyle = craterGrad;
+            gCtx.beginPath(); gCtx.arc(550, 210, 130, 0, Math.PI * 2); gCtx.fill();
+
+            // Ríos de lava principal
+            gCtx.beginPath(); gCtx.moveTo(40, 210); gCtx.bezierCurveTo(180, 90, 360, 330, 710, 205);
+            gCtx.lineWidth = 55; gCtx.strokeStyle = "#b33900"; gCtx.stroke();
+            gCtx.lineWidth = 42; gCtx.strokeStyle = "#e67e22"; gCtx.stroke();
+            gCtx.lineWidth = 20; gCtx.strokeStyle = "#f1c40f"; gCtx.stroke();
+
+            // Chispas y brasas animadas
+            gCtx.fillStyle = "#ff6b00";
+            for(let i = 0; i < 18; i++) {
+                let rx = (Date.now() / 10 + i * 42) % 750;
+                let ry = 420 - ((Date.now() / 8 + i * 37) % 400);
+                let size = (i % 3) + 2;
+                gCtx.beginPath(); cArc(rx, ry, size); gCtx.fill();
+            }
+        }
+
+        function cCtxClose(c) { c.fill(); }
+
+        // SPRITES
+        function drawHero(x, y) {
+            gCtx.save();
+            gCtx.fillStyle = "rgba(0,0,0,0.4)";
+            gCtx.beginPath(); gCtx.ellipse(x, y + 20, 16, 7, 0, 0, Math.PI*2); gCtx.fill();
+
+            gCtx.fillStyle = "#c0392b";
+            gCtx.beginPath(); gCtx.moveTo(x - 8, y - 5); gCtx.lineTo(x - 20, y + 18); gCtx.lineTo(x + 2, y + 20); gCtx.lineTo(x + 8, y - 5); gCtx.fill();
+
+            gCtx.fillStyle = "#34495e"; gCtx.fillRect(x - 10, y - 10, 20, 22);
+            gCtx.fillStyle = "#bdc3c7"; gCtx.fillRect(x - 7, y - 7, 14, 16);
+            gCtx.fillStyle = "#f1c40f"; gCtx.fillRect(x - 7, y + 3, 14, 3);
+
+            gCtx.fillStyle = "#f0c27b"; gCtx.beginPath(); cArc(x, y - 16, 9); gCtx.fill();
+            gCtx.fillStyle = "#7f8c8d"; gCtx.beginPath(); gCtx.arc(x, y - 18, 9, Math.PI, 0); gCtx.fill();
+            gCtx.fillStyle = "#e74c3c"; gCtx.fillRect(x - 2, y - 28, 4, 10);
+
+            gCtx.fillStyle = "#2980b9"; gCtx.beginPath(); cArc(x - 14, y + 2, 9); gCtx.fill();
+            gCtx.strokeStyle = "#f39c12"; gCtx.lineWidth = 2; gCtx.stroke();
+
+            gCtx.strokeStyle = "#ecf0f1"; gCtx.lineWidth = 4;
+            gCtx.beginPath(); gCtx.moveTo(x + 10, y + 4); gCtx.lineTo(x + 22, y - 14); gCtx.stroke();
+            gCtx.fillStyle = "#f39c12"; gCtx.fillRect(x + 8, y + 2, 6, 3);
+            gCtx.restore();
+        }
+
+        function drawGoblin(x, y) {
+            gCtx.fillStyle = "rgba(0,0,0,0.3)"; gCtx.beginPath(); gCtx.ellipse(x, y + 15, 12, 5, 0, 0, Math.PI*2); gCtx.fill();
+            gCtx.fillStyle = "#27ae60"; gCtx.beginPath(); cArc(x, y - 12, 10); gCtx.fill();
+            gCtx.beginPath(); gCtx.moveTo(x - 10, y - 15); gCtx.lineTo(x - 18, y - 18); gCtx.lineTo(x - 8, y - 8); gCtx.fill();
+            gCtx.beginPath(); gCtx.moveTo(x + 10, y - 15); gCtx.lineTo(x + 18, y - 18); gCtx.lineTo(x + 8, y - 8); gCtx.fill();
+            gCtx.fillStyle = "#7f8c8d"; gCtx.fillRect(x - 8, y - 4, 16, 18);
+            gCtx.fillStyle = "#e74c3c"; gCtx.fillRect(x - 4, y - 14, 3, 3); gCtx.fillRect(x + 1, y - 14, 3, 3);
+            gCtx.fillStyle = "#7f4f24"; gCtx.fillRect(x + 10, y - 18, 5, 26);
+        }
+
+        function drawMinotaur(x, y) {
+            gCtx.fillStyle = "rgba(0,0,0,0.3)"; gCtx.beginPath(); gCtx.ellipse(x, y + 18, 16, 6, 0, 0, Math.PI*2); gCtx.fill();
+            gCtx.fillStyle = "#5d4037"; gCtx.fillRect(x - 12, y - 10, 24, 25);
+            gCtx.fillStyle = "#3e2723"; gCtx.beginPath(); cArc(x, y - 16, 13); gCtx.fill();
+            gCtx.fillStyle = "#ecf0f1";
+            gCtx.beginPath(); gCtx.moveTo(x - 10, y - 22); gCtx.lineTo(x - 22, y - 32); gCtx.lineTo(x - 5, y - 18); gCtx.fill();
+            gCtx.beginPath(); gCtx.moveTo(x + 10, y - 22); gCtx.lineTo(x + 22, y - 32); gCtx.lineTo(x + 5, y - 18); gCtx.fill();
+            gCtx.fillStyle = "#7f8c8d"; gCtx.fillRect(x - 20, y - 25, 4, 35);
+            gCtx.beginPath(); gCtx.arc(x - 20, y - 15, 10, 0, Math.PI*2); gCtx.fill();
+        }
+
+        function drawDarkElf(x, y) {
+            gCtx.fillStyle = "rgba(0,0,0,0.3)"; gCtx.beginPath(); gCtx.ellipse(x, y + 15, 12, 5, 0, 0, Math.PI*2); gCtx.fill();
+            gCtx.fillStyle = "#2c3e50"; gCtx.beginPath(); gCtx.moveTo(x, y - 24); gCtx.lineTo(x - 12, y + 15); gCtx.lineTo(x + 12, y + 15); gCtx.fill();
+            gCtx.fillStyle = "#8e44ad"; gCtx.beginPath(); cArc(x, y - 12, 8); gCtx.fill();
+            gCtx.fillStyle = "#f39c12"; gCtx.fillRect(x + 10, y - 22, 3, 35);
+            gCtx.fillStyle = "#1abc9c"; gCtx.beginPath(); cArc(x + 11, y - 25, 6); gCtx.fill();
+        }
+
+        function drawBandit(x, y) {
+            gCtx.fillStyle = "rgba(0,0,0,0.3)"; gCtx.beginPath(); gCtx.ellipse(x, y + 15, 12, 5, 0, 0, Math.PI*2); gCtx.fill();
+            gCtx.fillStyle = "#d35400"; gCtx.fillRect(x - 8, y - 6, 16, 20);
+            gCtx.fillStyle = "#2c3e50"; gCtx.fillRect(x - 8, y - 18, 16, 8);
+            gCtx.fillStyle = "#ecf0f1"; gCtx.fillRect(x + 10, y - 5, 8, 3);
+        }
+
+        // REDISEÑO DEL DRAGÓN VAELGOR (CORREGIDO Y MEJORADO)
+        function drawDragon(x, y) {
+            gCtx.save();
+            
+            // Sombra masiva
+            gCtx.fillStyle = "rgba(0,0,0,0.5)";
+            gCtx.beginPath(); gCtx.ellipse(x, y + 50, 65, 20, 0, 0, Math.PI * 2); gCtx.fill();
+
+            // Cola del Dragón
+            gCtx.strokeStyle = "#600909"; gCtx.lineWidth = 14;
+            gCtx.beginPath(); gCtx.moveTo(x + 10, y + 25); gCtx.quadraticCurveTo(x + 75, y + 45, x + 85, y + 10); gCtx.stroke();
+            gCtx.fillStyle = "#f39c12";
+            gCtx.beginPath(); gCtx.moveTo(x + 85, y + 10); gCtx.lineTo(x + 95, y + 2); gCtx.lineTo(x + 92, y + 18); gCtx.closePath(); gCtx.fill();
+
+            // Enormes alas desplegadas
+            gCtx.fillStyle = "#4a0505";
+            gCtx.beginPath(); gCtx.moveTo(x - 20, y); gCtx.lineTo(x - 110, y - 65); gCtx.lineTo(x - 60, y + 25); gCtx.closePath(); gCtx.fill();
+            gCtx.beginPath(); gCtx.moveTo(x + 20, y); gCtx.lineTo(x + 110, y - 65); gCtx.lineTo(x + 60, y + 25); gCtx.closePath(); gCtx.fill();
+
+            // Membrana interior de las alas
+            gCtx.fillStyle = "#8a1515";
+            gCtx.beginPath(); gCtx.moveTo(x - 20, y); gCtx.lineTo(x - 95, y - 50); gCtx.lineTo(x - 55, y + 15); gCtx.closePath(); gCtx.fill();
+            gCtx.beginPath(); gCtx.moveTo(x + 20, y); gCtx.lineTo(x + 95, y - 50); gCtx.lineTo(x + 55, y + 15); gCtx.closePath(); gCtx.fill();
+
+            // Cuerpo de Dragón
+            gCtx.fillStyle = "#7a0a0a";
+            gCtx.beginPath(); gCtx.ellipse(x, y + 10, 36, 42, 0, 0, Math.PI * 2); gCtx.fill();
+
+            // Pecho con escamas doradas
+            gCtx.fillStyle = "#d35400";
+            gCtx.beginPath(); gCtx.ellipse(x, y + 12, 20, 26, 0, 0, Math.PI * 2); gCtx.fill();
+            gCtx.fillStyle = "#f39c12";
+            gCtx.beginPath(); gCtx.ellipse(x, y + 12, 12, 18, 0, 0, Math.PI * 2); gCtx.fill();
+
+            // Cabeza de Vaelgor
+            gCtx.fillStyle = "#8e0c0c";
+            gCtx.beginPath(); cArc(x, y - 28, 24); gCtx.fill();
+
+            // Cuernos gigantes coronados
+            gCtx.fillStyle = "#f1c40f";
+            gCtx.beginPath(); gCtx.moveTo(x - 12, y - 40); gCtx.lineTo(x - 40, y - 75); gCtx.lineTo(x - 4, y - 45); gCtx.closePath(); gCtx.fill();
+            gCtx.beginPath(); gCtx.moveTo(x + 12, y - 40); gCtx.lineTo(x + 40, y - 75); gCtx.lineTo(x + 4, y - 45); gCtx.closePath(); gCtx.fill();
+
+            // Ojos de fuego resplandeciente
+            gCtx.fillStyle = "#ffea00";
+            gCtx.beginPath(); cArc(x - 9, y - 32, 5); gCtx.fill();
+            gCtx.beginPath(); cArc(x + 9, y - 32, 5); gCtx.fill();
+            gCtx.fillStyle = "#ffffff";
+            gCtx.beginPath(); cArc(x - 9, y - 32, 2); gCtx.fill();
+            gCtx.beginPath(); cArc(x + 9, y - 32, 2); gCtx.fill();
+
+            // Aliento de fuego
+            let fGrad = gCtx.createRadialGradient(x, y - 2, 4, x, y - 2, 28);
+            fGrad.addColorStop(0, "#ffffff");
+            fGrad.addColorStop(0.3, "#ffea00");
+            fGrad.addColorStop(0.7, "#e67e22");
+            fGrad.addColorStop(1, "rgba(231, 76, 60, 0)");
+            gCtx.fillStyle = fGrad;
+            gCtx.beginPath(); cArc(x, y - 2, 28); gCtx.fill();
+
+            // Barra de vida superior de Vaelgor
+            gCtx.fillStyle = "#111";
+            gCtx.fillRect(x - 55, y - 90, 110, 14);
+            gCtx.fillStyle = "#c0392b";
+            let hpWidth = Math.max(0, (106 * (dragonHP / dragonMaxHP)));
+            gCtx.fillRect(x - 53, y - 88, hpWidth, 10);
+            gCtx.strokeStyle = "#f3d078"; gCtx.lineWidth = 1.5;
+            gCtx.strokeRect(x - 55, y - 90, 110, 14);
+
+            gCtx.restore();
+        }
+
+        function cArc(x, y, r) { gCtx.arc(x, y, r, 0, Math.PI*2); }
+
+        function gameLoop() {
+            gCtx.clearRect(0, 0, gameCanvas.width, gameCanvas.height);
+
+            if (currentBiome === 1) renderPradera();
+            else if (currentBiome === 2) renderDesierto();
+            else if (currentBiome === 3) renderBosque();
+            else if (currentBiome === 4) renderMontana();
+            else if (currentBiome === 5) renderVolcan();
+
+            // Portal (Biomas 1 al 4)
+            if (currentBiome < 5) {
+                gCtx.fillStyle = "#2a1b3d";
+                gCtx.fillRect(portal.x, portal.y, portal.width, portal.height);
+                gCtx.strokeStyle = "#9b59b6"; gCtx.lineWidth = 4;
+                gCtx.strokeRect(portal.x, portal.y, portal.width, portal.height);
+
+                let portalGrad = gCtx.createRadialGradient(portal.x+20, portal.y+37, 2, portal.x+20, portal.y+37, 25);
+                portalGrad.addColorStop(0, "#f39c12"); portalGrad.addColorStop(1, "#8e44ad");
+                gCtx.fillStyle = portalGrad; gCtx.fillRect(portal.x+4, portal.y+4, portal.width-8, portal.height-8);
+
+                const enemigosVivos = enemies.filter(e => e.alive).length;
+                if (enemigosVivos > 0) {
+                    barrierPulse += 0.06;
+                    const alpha = 0.45 + Math.sin(barrierPulse) * 0.25;
+                    gCtx.fillStyle = `rgba(231, 76, 60, ${alpha})`;
+                    gCtx.fillRect(portal.x - 12, portal.y - 12, portal.width + 24, portal.height + 24);
+                }
+            }
+
+            // Renderizado de Enemigos o Dragón
+            enemies.forEach(e => {
+                if (e.alive) {
+                    if (currentBiome === 1) drawGoblin(e.x, e.y);
+                    else if (currentBiome === 2) drawMinotaur(e.x, e.y);
+                    else if (currentBiome === 3) drawDarkElf(e.x, e.y);
+                    else if (currentBiome === 4) drawBandit(e.x, e.y);
+                    else if (currentBiome === 5) drawDragon(e.x, e.y);
+                }
+            });
+
+            // Renderizado del Héroe
+            drawHero(player.x, player.y);
+
+            requestAnimationFrame(gameLoop);
+        }
+
+        function handleKeyDown(e) {
+            if (inCombat) return;
+            if (['ArrowUp', 'KeyW'].includes(e.code)) movePlayer('up');
+            if (['ArrowDown', 'KeyS'].includes(e.code)) movePlayer('down');
+            if (['ArrowLeft', 'KeyA'].includes(e.code)) movePlayer('left');
+            if (['ArrowRight', 'KeyD'].includes(e.code)) movePlayer('right');
+        }
+
+        function movePlayer(dir) {
+            if (inCombat) return;
+
+            if (dir === 'up') player.y = Math.max(45, player.y - player.speed);
+            if (dir === 'down') player.y = Math.min(gameCanvas.height - 45, player.y + player.speed);
+            if (dir === 'left') player.x = Math.max(35, player.x - player.speed);
+            if (dir === 'right') player.x = Math.min(gameCanvas.width - 35, player.x + player.speed);
+
+            checkCollisions();
+        }
+
+        function checkCollisions() {
+            enemies.forEach(e => {
+                if (e.alive) {
+                    const dist = Math.hypot(player.x - e.x, player.y - e.y);
+                    if (dist < (e.isBoss ? 75 : 35)) {
+                        iniciarCombate(e);
+                    }
+                }
+            });
+
+            if (currentBiome < 5) {
+                const enemigosVivos = enemies.filter(e => e.alive).length;
+                if (player.x > portal.x - 10 && player.y > portal.y && player.y < portal.y + portal.height) {
+                    if (enemigosVivos === 0) {
+                        alert(`¡Excelente! Cruzando el portal hacia el Bioma ${currentBiome + 1}...`);
+                        cargarBioma(currentBiome + 1);
+                    } else {
+                        player.x -= 25;
+                    }
+                }
+            }
+        }
+
+        function iniciarCombate(enemy) {
+            if (preguntasDisponibles.length === 0) {
+                if (currentBiome === 5) {
+                    preguntasDisponibles = [...BANCO_BIOMA_5_DRAGON];
+                } else {
+                    return;
+                }
+            }
+
+            inCombat = true;
+            activeEnemy = enemy;
+
+            const randomIndex = Math.floor(Math.random() * preguntasDisponibles.length);
+            currentQuestion = preguntasDisponibles[randomIndex];
+            preguntasDisponibles.splice(randomIndex, 1);
+
+            document.getElementById('combatTitle').innerText = enemy.isBoss ? `¡Batalla Final Contra Vaelgor! (Salud: ${dragonHP}/${dragonMaxHP})` : "¡Encuentro Enemigo!";
+            document.getElementById('combatQuestion').innerText = currentQuestion.q;
+            document.getElementById('hintText').innerText = currentQuestion.hint;
+            document.getElementById('hintText').style.display = 'none';
+            document.getElementById('feedbackMsg').innerText = '';
+
+            const optsDiv = document.getElementById('optionsContainer');
+            optsDiv.innerHTML = '';
+
+            currentQuestion.opts.forEach((optText, i) => {
+                const btn = document.createElement('button');
+                btn.className = 'opt-btn';
+                btn.innerText = `${String.fromCharCode(65 + i)}) ${optText}`;
+                btn.onclick = () => responder(i);
+                optsDiv.appendChild(btn);
+            });
+
+            document.getElementById('combatModal').classList.remove('hidden');
+        }
+
+        function toggleHint() {
+            const h = document.getElementById('hintText');
+            h.style.display = (h.style.display === 'none') ? 'block' : 'none';
+        }
+
+        function responder(opcionSeleccionada) {
+            const fb = document.getElementById('feedbackMsg');
+            if (opcionSeleccionada === currentQuestion.ans) {
+                totalAciertos++;
+                fb.style.color = '#2ecc71';
+                fb.innerText = "¡Correcto! Has canalizado el poder del Álgebra.";
+                
+                setTimeout(() => {
+                    if (activeEnemy.isBoss) {
+                        dragonHP--;
+                        updateEnemyTracker();
+                        if (dragonHP <= 0) {
+                            activeEnemy.alive = false;
+                            document.getElementById('combatModal').classList.add('hidden');
+                            finalizarJuego();
+                            return;
+                        }
+                    } else {
+                        activeEnemy.alive = false;
+                        updateEnemyTracker();
+                    }
+
+                    document.getElementById('combatModal').classList.add('hidden');
+                    inCombat = false;
+                }, 1200);
+            } else {
+                totalErrores++;
+                fb.style.color = '#e74c3c';
+                fb.innerText = "Incorrecto. Revisa la pista e inténtalo de nuevo.";
+            }
+        }
+
+        function finalizarJuego() {
+            document.getElementById('repStudent').innerText = `${alumno.nombre} ${alumno.apellido}`;
+            document.getElementById('repGroup').innerText = alumno.grupo;
+            document.getElementById('repCorrect').innerText = totalAciertos;
+            document.getElementById('repWrong').innerText = totalErrores;
+            document.getElementById('repDragonHP').innerText = `${dragonMaxHP} puntos (Superados)`;
+            document.getElementById('repDate').innerText = new Date().toLocaleString('es-ES');
+
+            document.getElementById('victoryModal').classList.remove('hidden');
+        }
+
+        function descargarPDF() {
+            const { jsPDF } = window.jspdf;
+            const doc = new jsPDF();
+
+            doc.setFillColor(20, 16, 35);
+            doc.rect(0, 0, 210, 35, 'F');
+            
+            doc.setTextColor(243, 208, 120);
+            doc.setFontSize(20);
+            doc.text("Eryndor: El Despertar del Álgebra", 105, 18, { align: "center" });
+            
+            doc.setFontSize(12);
+            doc.setTextColor(209, 199, 183);
+            doc.text("Reporte de Desempeño Escolar - Tarea CREA", 105, 27, { align: "center" });
+
+            doc.setTextColor(0, 0, 0);
+            doc.setFontSize(14);
+            doc.text("FICHA DEL ESTUDIANTE", 20, 50);
+
+            doc.setFontSize(11);
+            doc.text(`Nombre Completo: ${alumno.nombre} ${alumno.apellido}`, 20, 62);
+            doc.text(`Grupo / Liceo: ${alumno.grupo}`, 20, 72);
+            doc.text(`Fecha de Finalización: ${new Date().toLocaleDateString('es-ES')} - ${new Date().toLocaleTimeString('es-ES')}`, 20, 82);
+
+            doc.setFillColor(240, 240, 240);
+            doc.rect(20, 95, 170, 70, 'F');
+            doc.rect(20, 95, 170, 70, 'S');
+
+            doc.setFontSize(13);
+            doc.text("RESUMEN DE DESEMPENO ALGEBRAICO", 25, 107);
+
+            doc.setFontSize(11);
+            doc.text(`Biomas Purificados: 5 / 5 (Completo)`, 25, 120);
+            doc.text(`Ejercicios Resueltos Correctamente: ${totalAciertos}`, 25, 130);
+            doc.text(`Intentos / Errores Cometidos: ${totalErrores}`, 25, 140);
+            doc.text(`Desafíos de Vaelgor Superados: ${dragonMaxHP} Ejercicios`, 25, 150);
+
+            doc.setFontSize(10);
+            doc.setTextColor(80, 80, 80);
+            doc.text("Este documento certifica la resolución satisfactoria de los problemas de", 20, 180);
+            doc.text("polinomios, ecuaciones e inecuaciones cuadráticas, rectas y sistemas 2x2.", 20, 187);
+
+            doc.save(`Eryndor_Reporte_${alumno.apellido}_${alumno.nombre}.pdf`);
+        }
+    </script>
+</body>
+</html>
